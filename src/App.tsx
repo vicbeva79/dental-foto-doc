@@ -14,8 +14,8 @@ const MAX_PHOTOS = 9;
 
 const aspectRatio = 16 / 9;
 
-const A4_WIDTH_PX = 1123; // 297mm at 96dpi
-const A4_HEIGHT_PX = 794; // 210mm at 96dpi (apaisado)
+const A4_WIDTH_PX = 2480; // Aumentado para mejor resolución (297mm a 300dpi)
+const A4_HEIGHT_PX = 1754; // Aumentado para mejor resolución (210mm a 300dpi)
 
 const App: React.FC = () => {
   const [nombre, setNombre] = useState<string>('');
@@ -31,20 +31,72 @@ const App: React.FC = () => {
   const [camaras, setCamaras] = useState<MediaDeviceInfo[]>([]);
   const [camaraSeleccionada, setCamaraSeleccionada] = useState<string | undefined>(undefined);
   const [showSelector, setShowSelector] = useState(false);
+  const [isPortrait, setIsPortrait] = useState(false);
 
-  // Detectar cámaras disponibles al cargar
+  // Detectar cámaras disponibles al cargar y cuando cambia el estado de la cámara
   useEffect(() => {
-    navigator.mediaDevices.enumerateDevices().then(devices => {
-      const videoInputs = devices.filter(d => d.kind === 'videoinput');
-      setCamaras(videoInputs);
-      if (videoInputs.length === 1) setCamaraSeleccionada(videoInputs[0].deviceId);
-    });
+    const detectarCamaras = async () => {
+      try {
+        // Primero solicitar permisos de cámara
+        await navigator.mediaDevices.getUserMedia({ video: true });
+        
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoInputs = devices.filter(d => d.kind === 'videoinput');
+        
+        // Ordenar cámaras: primero la trasera (si existe), luego las demás
+        const sortedCameras = videoInputs.sort((a, b) => {
+          const aIsBack = a.label.toLowerCase().includes('back') || 
+                         a.label.toLowerCase().includes('trasera') ||
+                         a.label.toLowerCase().includes('posterior');
+          const bIsBack = b.label.toLowerCase().includes('back') || 
+                         b.label.toLowerCase().includes('trasera') ||
+                         b.label.toLowerCase().includes('posterior');
+          if (aIsBack && !bIsBack) return -1;
+          if (!aIsBack && bIsBack) return 1;
+          return 0;
+        });
+
+        setCamaras(sortedCameras);
+        
+        // Seleccionar automáticamente la cámara trasera si existe
+        const backCamera = sortedCameras.find(cam => 
+          cam.label.toLowerCase().includes('back') || 
+          cam.label.toLowerCase().includes('trasera') ||
+          cam.label.toLowerCase().includes('posterior')
+        );
+        
+        if (backCamera) {
+          setCamaraSeleccionada(backCamera.deviceId);
+        } else if (sortedCameras.length === 1) {
+          setCamaraSeleccionada(sortedCameras[0].deviceId);
+        }
+      } catch (err) {
+        console.error('Error al detectar cámaras:', err);
+        setError('No se pudieron detectar las cámaras disponibles. Asegúrate de dar permisos de cámara.');
+      }
+    };
+
+    detectarCamaras();
+    navigator.mediaDevices.addEventListener('devicechange', detectarCamaras);
+    return () => {
+      navigator.mediaDevices.removeEventListener('devicechange', detectarCamaras);
+    };
+  }, []);
+
+  // Detectar orientación del dispositivo
+  useEffect(() => {
+    const checkOrientation = () => {
+      setIsPortrait(window.innerHeight > window.innerWidth);
+    };
+    window.addEventListener('resize', checkOrientation);
+    checkOrientation();
+    return () => window.removeEventListener('resize', checkOrientation);
   }, []);
 
   // Activar cámara para una celda específica
   const activarCamara = (index: number) => {
     setFotoActual(index);
-    if (camaras.length > 1 && !camaraSeleccionada) {
+    if (camaras.length > 1) {
       setShowSelector(true);
     } else {
       iniciarCamara(index, camaraSeleccionada);
@@ -58,9 +110,22 @@ const App: React.FC = () => {
       setFotoActual(index);
       setCamaraActiva(true);
       setShowSelector(false);
+
+      // Detener cualquier stream activo
+      if (videoRef.current?.srcObject) {
+        const stream = videoRef.current.srcObject as MediaStream;
+        stream.getTracks().forEach(track => track.stop());
+      }
+
       const constraints: MediaStreamConstraints = {
-        video: deviceId ? { deviceId: { exact: deviceId }, aspectRatio } : { aspectRatio, facingMode: 'environment' }
+        video: {
+          ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' }),
+          width: { ideal: 1920 },
+          height: { ideal: 1080 },
+          aspectRatio: { ideal: 16/9 }
+        }
       };
+
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
@@ -75,7 +140,7 @@ const App: React.FC = () => {
     }
   };
 
-  // Capturar foto
+  // Capturar foto con mejor calidad
   const capturarFoto = () => {
     try {
       if (!videoRef.current || !canvasRef.current || fotoActual === null) {
@@ -90,10 +155,15 @@ const App: React.FC = () => {
         throw new Error('No se pudo obtener el contexto del canvas');
       }
 
-      const width = 320;
+      // Usar dimensiones más altas para mejor calidad
+      const width = 1920;
       const height = Math.round(width / aspectRatio);
       canvas.width = width;
       canvas.height = height;
+      
+      // Aplicar mejor calidad de renderizado
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = 'high';
       ctx.drawImage(video, 0, 0, width, height);
       
       const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
@@ -125,39 +195,55 @@ const App: React.FC = () => {
       setDescargando(true);
       document.body.classList.add('exportando');
       const node = docRef.current;
+      
       // Guardar los estilos originales
-      const originalWidth = node.style.width;
-      const originalHeight = node.style.height;
-      const originalPosition = node.style.position;
-      const originalLeft = node.style.left;
-      const originalTop = node.style.top;
-      const originalMargin = node.style.margin;
-      const originalTransform = node.style.transform;
-      const originalPadding = node.style.padding;
-      const originalBorderRadius = node.style.borderRadius;
-      // Aplicar estilos para la captura (solo tamaño y fondo)
-      node.style.width = `${A4_WIDTH_PX}px`;
-      node.style.height = `${A4_HEIGHT_PX}px`;
-      node.style.backgroundColor = '#ffffff';
-      node.style.position = 'fixed';
-      node.style.left = '0';
-      node.style.top = '0';
-      node.style.margin = '0';
-      node.style.transform = 'none';
-      node.style.padding = '0';
-      node.style.borderRadius = '0';
-      // Esperar a que los estilos se apliquen (100ms)
+      const originalStyles = {
+        width: node.style.width,
+        height: node.style.height,
+        position: node.style.position,
+        left: node.style.left,
+        top: node.style.top,
+        margin: node.style.margin,
+        transform: node.style.transform,
+        padding: node.style.padding,
+        borderRadius: node.style.borderRadius,
+        backgroundColor: node.style.backgroundColor
+      };
+
+      // Aplicar estilos para la captura
+      Object.assign(node.style, {
+        width: `${A4_WIDTH_PX}px`,
+        height: `${A4_HEIGHT_PX}px`,
+        backgroundColor: '#ffffff',
+        position: 'fixed',
+        left: '0',
+        top: '0',
+        margin: '0',
+        transform: 'none',
+        padding: '0',
+        borderRadius: '0'
+      });
+
+      // Esperar a que los estilos se apliquen
       await new Promise(resolve => setTimeout(resolve, 100));
+
+      // Configuración mejorada para dom-to-image
       const dataUrl = await domtoimage.toJpeg(node, { 
-        quality: 0.98, 
-        width: A4_WIDTH_PX, 
+        quality: 1.0, // Máxima calidad
+        width: A4_WIDTH_PX,
         height: A4_HEIGHT_PX,
         bgcolor: '#ffffff',
         style: {
           'transform': 'none',
           'background-color': '#ffffff',
+        },
+        imagePlaceholder: undefined,
+        cacheBust: true,
+        filter: (node) => {
+          return (node.tagName !== 'BUTTON');
         }
       });
+
       try {
         const link = document.createElement('a');
         const fecha = getTodayES().replaceAll('/', '-');
@@ -167,17 +253,9 @@ const App: React.FC = () => {
       } catch (e) {
         setError('No se pudo descargar el documento. Prueba en otro navegador o dispositivo.');
       }
+
       // Restaurar estilos originales
-      node.style.width = originalWidth;
-      node.style.height = originalHeight;
-      node.style.backgroundColor = '';
-      node.style.position = originalPosition;
-      node.style.left = originalLeft;
-      node.style.top = originalTop;
-      node.style.margin = originalMargin;
-      node.style.transform = originalTransform;
-      node.style.padding = originalPadding;
-      node.style.borderRadius = originalBorderRadius;
+      Object.assign(node.style, originalStyles);
       document.body.classList.remove('exportando');
     } catch (err) {
       setError('Error al generar el documento');
@@ -261,32 +339,68 @@ const App: React.FC = () => {
             <select
               value={camaraSeleccionada}
               onChange={e => setCamaraSeleccionada(e.target.value)}
-              style={{ fontSize: '1.1rem', marginBottom: 16 }}
+              style={{ 
+                fontSize: '1.1rem', 
+                marginBottom: 16,
+                padding: '12px',
+                width: '100%',
+                maxWidth: '400px',
+                borderRadius: '8px',
+                border: '1px solid #ccc'
+              }}
             >
-              <option value={undefined}>Selecciona...</option>
+              <option value={undefined}>Selecciona una cámara...</option>
               {camaras.map(cam => (
-                <option key={cam.deviceId} value={cam.deviceId}>{cam.label || `Cámara ${cam.deviceId}`}</option>
+                <option key={cam.deviceId} value={cam.deviceId}>
+                  {cam.label || `Cámara ${cam.deviceId.slice(0, 8)}...`}
+                </option>
               ))}
             </select>
-            <button
-              className="btn-foto"
-              onClick={() => {
-                if (fotoActual !== null && camaraSeleccionada) {
-                  iniciarCamara(fotoActual, camaraSeleccionada);
-                }
-              }}
-              disabled={!camaraSeleccionada}
-            >
-              Activar cámara
-            </button>
-            <button className="btn-cerrar" onClick={() => setShowSelector(false)}>Cancelar</button>
+            <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+              <button
+                className="btn-foto"
+                onClick={() => {
+                  if (fotoActual !== null && camaraSeleccionada) {
+                    iniciarCamara(fotoActual, camaraSeleccionada);
+                  }
+                }}
+                disabled={!camaraSeleccionada}
+                style={{ flex: 1 }}
+              >
+                Activar cámara
+              </button>
+              <button 
+                className="btn-cerrar" 
+                onClick={() => {
+                  setShowSelector(false);
+                  setFotoActual(null);
+                }}
+                style={{ flex: 1 }}
+              >
+                Cancelar
+              </button>
+            </div>
           </div>
         </div>
       )}
       {camaraActiva && (
         <div className="modal-camara">
           <div className="camara-contenedor">
-            <video ref={videoRef} autoPlay playsInline className="video-captura" />
+            {isPortrait && (
+              <div style={{
+                background: '#ffecb3',
+                color: '#b26a00',
+                padding: '12px 16px',
+                borderRadius: '8px',
+                marginBottom: 12,
+                fontWeight: 600,
+                textAlign: 'center',
+                maxWidth: 400
+              }}>
+                Para mejores resultados, gira tu dispositivo y toma la foto en horizontal (apaisado).
+              </div>
+            )}
+            <video ref={videoRef} autoPlay playsInline className="video-captura" style={{ aspectRatio: '16/9', width: '100%', maxWidth: 600, background: '#222', borderRadius: 8, objectFit: 'cover' }} />
             <button className="btn-foto" onClick={capturarFoto}>Tomar foto</button>
             <button className="btn-cerrar" onClick={() => {
               if (videoRef.current && videoRef.current.srcObject) {
