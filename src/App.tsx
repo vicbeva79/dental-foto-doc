@@ -17,6 +17,20 @@ const aspectRatio = 16 / 9;
 const A4_WIDTH_PX = 2480; // Aumentado para mejor resolución (297mm a 300dpi)
 const A4_HEIGHT_PX = 1754; // Aumentado para mejor resolución (210mm a 300dpi)
 
+const isMobile = () => /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+
+const PHOTO_LABELS = [
+  'Perfil',                          // Posición 0
+  'Frontal sonrisa',                 // Posición 1
+  'Frontal reposo',                  // Posición 2
+  'Intraoral anterior boca entreabierta', // Posición 3
+  'Oclusal superior',                // Posición 4
+  'Lateral izquierda',               // Posición 5
+  'Intrabucal anterior',             // Posición 6
+  'Oclusal inferior',                // Posición 7
+  'Lateral derecha'                  // Posición 8
+];
+
 const App: React.FC = () => {
   const [nombre, setNombre] = useState<string>('');
   const [ficha, setFicha] = useState<string>('');
@@ -32,6 +46,7 @@ const App: React.FC = () => {
   const [camaraSeleccionada, setCamaraSeleccionada] = useState<string | undefined>(undefined);
   const [showSelector, setShowSelector] = useState(false);
   const [isPortrait, setIsPortrait] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Detectar cámaras disponibles al cargar y cuando cambia el estado de la cámara
   useEffect(() => {
@@ -96,7 +111,10 @@ const App: React.FC = () => {
   // Activar cámara para una celda específica
   const activarCamara = (index: number) => {
     setFotoActual(index);
-    if (camaras.length > 1) {
+    if (isMobile()) {
+      // Disparar input file en móvil
+      if (fileInputRef.current) fileInputRef.current.click();
+    } else if (camaras.length > 1) {
       setShowSelector(true);
     } else {
       iniciarCamara(index, camaraSeleccionada);
@@ -117,14 +135,26 @@ const App: React.FC = () => {
         stream.getTracks().forEach(track => track.stop());
       }
 
-      const constraints: MediaStreamConstraints = {
-        video: {
-          ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: 'environment' }),
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-          aspectRatio: { ideal: 16/9 }
-        }
-      };
+      let constraints: MediaStreamConstraints;
+      if (deviceId) {
+        constraints = {
+          video: {
+            deviceId: { exact: deviceId },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            aspectRatio: { ideal: 16/9 }
+          }
+        };
+      } else {
+        constraints = {
+          video: {
+            facingMode: { exact: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 },
+            aspectRatio: { ideal: 16/9 }
+          }
+        };
+      }
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       if (videoRef.current) {
@@ -132,7 +162,26 @@ const App: React.FC = () => {
         await videoRef.current.play();
       }
     } catch (err) {
-      setError('Error al acceder a la cámara. Por favor, asegúrate de dar los permisos necesarios.');
+      // Si exact falla, intentar con 'environment' sin exact
+      if (!deviceId) {
+        try {
+          const fallbackConstraints: MediaStreamConstraints = {
+            video: {
+              facingMode: 'environment',
+              width: { ideal: 1920 },
+              height: { ideal: 1080 },
+              aspectRatio: { ideal: 16/9 }
+            }
+          };
+          const stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
+          if (videoRef.current) {
+            videoRef.current.srcObject = stream;
+            await videoRef.current.play();
+          }
+          return;
+        } catch {}
+      }
+      setError('Error al acceder a la cámara trasera. Por favor, asegúrate de dar los permisos necesarios.');
       setCamaraActiva(false);
       setFotoActual(null);
       setShowSelector(false);
@@ -185,6 +234,22 @@ const App: React.FC = () => {
       setError('Error al capturar la foto');
       console.error('Error al capturar la foto:', err);
     }
+  };
+
+  // Manejar archivo seleccionado desde input file
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files || fotoActual === null) return;
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      setFotos(fotos => {
+        const nuevas = [...fotos];
+        nuevas[fotoActual] = ev.target?.result as string;
+        return nuevas;
+      });
+      setFotoActual(null);
+    };
+    reader.readAsDataURL(file);
   };
 
   // Descargar documento como JPG
@@ -313,8 +378,12 @@ const App: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <button className="btn-capturar" onClick={() => activarCamara(idx)}>
-                        Capturar foto
+                      <button 
+                        className="btn-capturar" 
+                        onClick={() => activarCamara(idx)}
+                        title={PHOTO_LABELS[idx]}
+                      >
+                        {PHOTO_LABELS[idx]}
                       </button>
                     )}
                   </div>
@@ -413,6 +482,14 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
+      <input
+        type="file"
+        accept="image/*"
+        capture="environment"
+        ref={fileInputRef}
+        style={{ display: 'none' }}
+        onChange={handleFileChange}
+      />
     </div>
   );
 };
