@@ -1,23 +1,32 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState } from 'react';
 import './App.css';
 import domtoimage from 'dom-to-image';
 
+// Importar imágenes
+import perfilImg from './assets/images/capture-profile.png';
+import frontalSonrisaImg from './assets/images/capture-smile.png';
+import frontalReposoImg from './assets/images/capture-rest.png';
+import intraoralAnteriorImg from './assets/images/capture-mouth-open.png';
+import oclusalSuperiorImg from './assets/images/capture-upper-occlusal.png';
+import lateralIzquierdaImg from './assets/images/capture-left-lateral.png';
+import intrabucalAnteriorImg from './assets/images/capture-intraoral.png';
+import oclusalInferiorImg from './assets/images/capture-lower-occlusal.png';
+import lateralDerechaImg from './assets/images/capture-right-lateral.png';
+
 // @ts-ignore: No type definitions for dom-to-image
-
-const LOGO_URL = 'https://i.postimg.cc/SNkk4x1J/Logotipo-horizontal-Dental-Carralero.png';
-
-function getTodayES() {
-  return new Date().toLocaleDateString('es-ES');
-}
+const getTodayES = () => {
+  const now = new Date();
+  return now.toLocaleDateString('es-ES');
+};
 
 const MAX_PHOTOS = 9;
+const aspectRatio = 16/9;
+const A4_WIDTH_PX = 2480;
+const A4_HEIGHT_PX = 1754;
 
-const aspectRatio = 16 / 9;
-
-const A4_WIDTH_PX = 2480; // Aumentado para mejor resolución (297mm a 300dpi)
-const A4_HEIGHT_PX = 1754; // Aumentado para mejor resolución (210mm a 300dpi)
-
-const isMobile = () => /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop/i.test(navigator.userAgent);
+const isMobile = () => {
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+};
 
 const PHOTO_LABELS = [
   'Perfil',                          // Posición 0
@@ -31,6 +40,18 @@ const PHOTO_LABELS = [
   'Lateral derecha'                  // Posición 8
 ];
 
+const PHOTO_IMAGES = [
+  perfilImg,                          // Posición 0
+  frontalSonrisaImg,                 // Posición 1
+  frontalReposoImg,                  // Posición 2
+  intraoralAnteriorImg,             // Posición 3
+  oclusalSuperiorImg,               // Posición 4
+  lateralIzquierdaImg,              // Posición 5
+  intrabucalAnteriorImg,            // Posición 6
+  oclusalInferiorImg,               // Posición 7
+  lateralDerechaImg                 // Posición 8
+];
+
 const App: React.FC = () => {
   const [nombre, setNombre] = useState<string>('');
   const [ficha, setFicha] = useState<string>('');
@@ -41,70 +62,21 @@ const App: React.FC = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const docRef = useRef<HTMLDivElement>(null);
-  const [descargando, setDescargando] = useState<boolean>(false);
+  const [descargando, setDescargando] = useState(false);
   const [camaras, setCamaras] = useState<MediaDeviceInfo[]>([]);
-  const [camaraSeleccionada, setCamaraSeleccionada] = useState<string | undefined>(undefined);
+  const [camaraSeleccionada, setCamaraSeleccionada] = useState<string>('');
   const [showSelector, setShowSelector] = useState(false);
   const [isPortrait, setIsPortrait] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Detectar cámaras disponibles al cargar y cuando cambia el estado de la cámara
-  useEffect(() => {
-    const detectarCamaras = async () => {
-      try {
-        // Primero solicitar permisos de cámara
-        await navigator.mediaDevices.getUserMedia({ video: true });
-        
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoInputs = devices.filter(d => d.kind === 'videoinput');
-        
-        // Ordenar cámaras: primero la trasera (si existe), luego las demás
-        const sortedCameras = videoInputs.sort((a, b) => {
-          const aIsBack = a.label.toLowerCase().includes('back') || 
-                         a.label.toLowerCase().includes('trasera') ||
-                         a.label.toLowerCase().includes('posterior');
-          const bIsBack = b.label.toLowerCase().includes('back') || 
-                         b.label.toLowerCase().includes('trasera') ||
-                         b.label.toLowerCase().includes('posterior');
-          if (aIsBack && !bIsBack) return -1;
-          if (!aIsBack && bIsBack) return 1;
-          return 0;
-        });
-
-        setCamaras(sortedCameras);
-        
-        // Seleccionar automáticamente la cámara trasera si existe
-        const backCamera = sortedCameras.find(cam => 
-          cam.label.toLowerCase().includes('back') || 
-          cam.label.toLowerCase().includes('trasera') ||
-          cam.label.toLowerCase().includes('posterior')
-        );
-        
-        if (backCamera) {
-          setCamaraSeleccionada(backCamera.deviceId);
-        } else if (sortedCameras.length === 1) {
-          setCamaraSeleccionada(sortedCameras[0].deviceId);
-        }
-      } catch (err) {
-        console.error('Error al detectar cámaras:', err);
-        setError('No se pudieron detectar las cámaras disponibles. Asegúrate de dar permisos de cámara.');
-      }
-    };
-
-    detectarCamaras();
-    navigator.mediaDevices.addEventListener('devicechange', detectarCamaras);
-    return () => {
-      navigator.mediaDevices.removeEventListener('devicechange', detectarCamaras);
-    };
-  }, []);
+  const [exportando, setExportando] = useState(false);
 
   // Detectar orientación del dispositivo
-  useEffect(() => {
+  React.useEffect(() => {
     const checkOrientation = () => {
       setIsPortrait(window.innerHeight > window.innerWidth);
     };
-    window.addEventListener('resize', checkOrientation);
     checkOrientation();
+    window.addEventListener('resize', checkOrientation);
     return () => window.removeEventListener('resize', checkOrientation);
   }, []);
 
@@ -113,48 +85,32 @@ const App: React.FC = () => {
     setFotoActual(index);
     if (isMobile()) {
       // Disparar input file en móvil
-      if (fileInputRef.current) fileInputRef.current.click();
-    } else if (camaras.length > 1) {
-      setShowSelector(true);
-    } else {
-      iniciarCamara(index, camaraSeleccionada);
+      if (fileInputRef.current) {
+        fileInputRef.current.click();
+      }
+      return;
     }
+
+    // En desktop, mostrar selector de cámara
+    setShowSelector(true);
+    setFotoActual(index);
   };
 
-  // Iniciar cámara con deviceId
-  const iniciarCamara = async (index: number, deviceId?: string) => {
+  // Iniciar cámara con el dispositivo seleccionado
+  const iniciarCamara = async (index: number, deviceId: string) => {
     try {
       setError(null);
       setFotoActual(index);
       setCamaraActiva(true);
       setShowSelector(false);
 
-      // Detener cualquier stream activo
-      if (videoRef.current?.srcObject) {
-        const stream = videoRef.current.srcObject as MediaStream;
-        stream.getTracks().forEach(track => track.stop());
-      }
-
-      let constraints: MediaStreamConstraints;
-      if (deviceId) {
-        constraints = {
-          video: {
-            deviceId: { exact: deviceId },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-            aspectRatio: { ideal: 16/9 }
-          }
-        };
-      } else {
-        constraints = {
-          video: {
-            facingMode: { exact: 'environment' },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 },
-            aspectRatio: { ideal: 16/9 }
-          }
-        };
-      }
+      const constraints = {
+        video: {
+          deviceId: deviceId ? { exact: deviceId } : undefined,
+          width: { ideal: 1920 },
+          height: { ideal: 1080 }
+        }
+      };
 
       const stream = await navigator.mediaDevices.getUserMedia(constraints);
       if (videoRef.current) {
@@ -162,25 +118,6 @@ const App: React.FC = () => {
         await videoRef.current.play();
       }
     } catch (err) {
-      // Si exact falla, intentar con 'environment' sin exact
-      if (!deviceId) {
-        try {
-          const fallbackConstraints: MediaStreamConstraints = {
-            video: {
-              facingMode: 'environment',
-              width: { ideal: 1920 },
-              height: { ideal: 1080 },
-              aspectRatio: { ideal: 16/9 }
-            }
-          };
-          const stream = await navigator.mediaDevices.getUserMedia(fallbackConstraints);
-          if (videoRef.current) {
-            videoRef.current.srcObject = stream;
-            await videoRef.current.play();
-          }
-          return;
-        } catch {}
-      }
       setError('Error al acceder a la cámara trasera. Por favor, asegúrate de dar los permisos necesarios.');
       setCamaraActiva(false);
       setFotoActual(null);
@@ -196,25 +133,22 @@ const App: React.FC = () => {
         throw new Error('No se puede capturar la foto en este momento');
       }
 
-      const video = videoRef.current;
       const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
+      const video = videoRef.current;
       
+      // Ajustar tamaño del canvas al video
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      
+      const ctx = canvas.getContext('2d');
       if (!ctx) {
         throw new Error('No se pudo obtener el contexto del canvas');
       }
 
-      // Usar dimensiones más altas para mejor calidad
-      const width = 1920;
-      const height = Math.round(width / aspectRatio);
-      canvas.width = width;
-      canvas.height = height;
+      // Dibujar el frame actual del video
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       
-      // Aplicar mejor calidad de renderizado
-      ctx.imageSmoothingEnabled = true;
-      ctx.imageSmoothingQuality = 'high';
-      ctx.drawImage(video, 0, 0, width, height);
-      
+      // Obtener la imagen en alta calidad
       const dataUrl = canvas.toDataURL('image/jpeg', 0.95);
       setFotos(fotos => {
         const nuevas = [...fotos];
@@ -232,7 +166,7 @@ const App: React.FC = () => {
       setFotoActual(null);
     } catch (err) {
       setError('Error al capturar la foto');
-      console.error('Error al capturar la foto:', err);
+      console.error('Error al capturar:', err);
     }
   };
 
@@ -252,117 +186,91 @@ const App: React.FC = () => {
     reader.readAsDataURL(file);
   };
 
-  // Descargar documento como JPG
+  // Descargar documento como imagen
   const descargarDocumento = async () => {
     if (!docRef.current) return;
+    
     try {
-      setError(null);
       setDescargando(true);
-      document.body.classList.add('exportando');
-      const node = docRef.current;
+      setExportando(true);
       
-      // Guardar los estilos originales
-      const originalStyles = {
-        width: node.style.width,
-        height: node.style.height,
-        position: node.style.position,
-        left: node.style.left,
-        top: node.style.top,
-        margin: node.style.margin,
-        transform: node.style.transform,
-        padding: node.style.padding,
-        borderRadius: node.style.borderRadius,
-        backgroundColor: node.style.backgroundColor
-      };
-
-      // Aplicar estilos para la captura
-      Object.assign(node.style, {
-        width: `${A4_WIDTH_PX}px`,
-        height: `${A4_HEIGHT_PX}px`,
-        backgroundColor: '#ffffff',
-        position: 'fixed',
-        left: '0',
-        top: '0',
-        margin: '0',
-        transform: 'none',
-        padding: '0',
-        borderRadius: '0'
-      });
-
-      // Esperar a que los estilos se apliquen
+      // Esperar a que se apliquen los estilos de exportación
       await new Promise(resolve => setTimeout(resolve, 100));
-
-      // Configuración mejorada para dom-to-image
-      const dataUrl = await domtoimage.toJpeg(node, { 
-        quality: 1.0, // Máxima calidad
-        width: A4_WIDTH_PX,
-        height: A4_HEIGHT_PX,
-        bgcolor: '#ffffff',
+      
+      const dataUrl = await domtoimage.toJpeg(docRef.current, {
+        quality: 0.95,
+        bgcolor: '#fff',
         style: {
-          'transform': 'none',
-          'background-color': '#ffffff',
-        },
-        imagePlaceholder: undefined,
-        cacheBust: true,
-        filter: (node) => {
-          return (node.tagName !== 'BUTTON');
+          transform: 'scale(1)',
+          transformOrigin: 'top left'
         }
       });
-
-      try {
-        const link = document.createElement('a');
-        const fecha = getTodayES().replaceAll('/', '-');
-        link.download = `${nombre || 'paciente'}_${fecha}.jpg`;
-        link.href = dataUrl;
-        link.click();
-      } catch (e) {
-        setError('No se pudo descargar el documento. Prueba en otro navegador o dispositivo.');
-      }
-
-      // Restaurar estilos originales
-      Object.assign(node.style, originalStyles);
-      document.body.classList.remove('exportando');
+      
+      const link = document.createElement('a');
+      const fecha = getTodayES().replaceAll('/', '-');
+      link.download = `${nombre || 'paciente'}_${fecha}.jpg`;
+      link.href = dataUrl;
+      link.click();
     } catch (err) {
-      setError('Error al generar el documento');
-      console.error('Error al generar el documento:', err);
-      document.body.classList.remove('exportando');
+      console.error('Error al generar la imagen:', err);
+      setError('Error al generar la imagen. Por favor, intenta de nuevo.');
     } finally {
       setDescargando(false);
+      setExportando(false);
     }
   };
 
+  // Cargar lista de cámaras disponibles
+  React.useEffect(() => {
+    const cargarCamaras = async () => {
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = devices.filter(device => device.kind === 'videoinput');
+        setCamaras(videoDevices);
+        if (videoDevices.length > 0) {
+          setCamaraSeleccionada(videoDevices[0].deviceId);
+        }
+      } catch (err) {
+        console.error('Error al cargar las cámaras:', err);
+      }
+    };
+    cargarCamaras();
+  }, []);
+
   return (
-    <div className="App">
-      {error && (
-        <div className="error-message">
-          {error}
-          <button onClick={() => setError(null)}>Cerrar</button>
-        </div>
-      )}
+    <div className={`App ${exportando ? 'exportando' : ''}`}>
       <div className="doc-a4" ref={docRef}>
         <header className="doc-header">
-          <img src={LOGO_URL} alt="Logo" className="logo-empresa" />
+          <img src="https://i.postimg.cc/SNkk4x1J/Logotipo-horizontal-Dental-Carralero.png" alt="Logo" className="logo-empresa" />
           <div className="datos-paciente">
             <div>
               <label>Nombre del paciente:</label>
               <input type="text" value={nombre} onChange={e => setNombre(e.target.value)} placeholder="Nombre" />
             </div>
             <div>
-              <label>Nº de ficha:</label>
+              <label>Número de ficha:</label>
               <input type="text" value={ficha} onChange={e => setFicha(e.target.value)} placeholder="Ficha" />
             </div>
           </div>
         </header>
-        <main className="fotos-grid">
-          {Array(3).fill(0).map((_, fila) => (
-            <div className="fila-fotos" key={fila}>
-              {Array(3).fill(0).map((_, col) => {
-                const idx = fila * 3 + col;
+
+        <div className="fotos-grid">
+          {Array.from({ length: 3 }).map((_, row) => (
+            <div className="fila-fotos" key={row}>
+              {Array.from({ length: 3 }).map((_, col) => {
+                const idx = row * 3 + col;
                 return (
                   <div className="foto-celda" key={col} style={{ aspectRatio: '16/9' }}>
                     {fotos[idx] ? (
                       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                        <img src={fotos[idx] as string} alt={`Foto ${idx + 1}`} className="foto-paciente" />
+                        <img 
+                          src={fotos[idx] as string} 
+                          alt={`Foto ${idx + 1}`} 
+                          className="foto-paciente"
+                          style={{
+                            transform: (idx === 4 || idx === 7) ? 'rotate(180deg)' : 'none'
+                          }}
+                        />
                         <button
                           className="btn-eliminar-foto"
                           title="Eliminar foto"
@@ -378,12 +286,16 @@ const App: React.FC = () => {
                         </button>
                       </div>
                     ) : (
-                      <button 
-                        className="btn-capturar" 
+                      <button
+                        className="btn-capturar"
                         onClick={() => activarCamara(idx)}
                         title={PHOTO_LABELS[idx]}
                       >
-                        {PHOTO_LABELS[idx]}
+                        <img 
+                          src={PHOTO_IMAGES[idx]} 
+                          alt={PHOTO_LABELS[idx]} 
+                          className="btn-image"
+                        />
                       </button>
                     )}
                   </div>
@@ -391,67 +303,73 @@ const App: React.FC = () => {
               })}
             </div>
           ))}
-        </main>
+        </div>
+
         <footer className="doc-footer">
-          <span className="fecha-doc">Documento generado: {getTodayES()}</span>
+          <p className="fecha-doc">{getTodayES()}</p>
         </footer>
       </div>
+
       {fotos.every(f => f) && (
         <button className="btn-descargar" onClick={descargarDocumento} disabled={descargando}>
           {descargando ? 'Generando...' : 'Descargar documento JPG'}
         </button>
       )}
+
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept="image/*"
+        capture="environment"
+        onChange={handleFileChange}
+        style={{ display: 'none' }}
+      />
+
       {showSelector && (
         <div className="modal-camara">
           <div className="camara-contenedor">
             <h3>Selecciona una cámara</h3>
             <select
               value={camaraSeleccionada}
-              onChange={e => setCamaraSeleccionada(e.target.value)}
-              style={{ 
-                fontSize: '1.1rem', 
-                marginBottom: 16,
-                padding: '12px',
+              onChange={(e) => setCamaraSeleccionada(e.target.value)}
+              style={{
                 width: '100%',
-                maxWidth: '400px',
-                borderRadius: '8px',
+                padding: '8px',
+                marginBottom: '16px',
+                borderRadius: '4px',
                 border: '1px solid #ccc'
               }}
             >
-              <option value={undefined}>Selecciona una cámara...</option>
-              {camaras.map(cam => (
-                <option key={cam.deviceId} value={cam.deviceId}>
-                  {cam.label || `Cámara ${cam.deviceId.slice(0, 8)}...`}
+              {camaras.map(camara => (
+                <option key={camara.deviceId} value={camara.deviceId}>
+                  {camara.label || `Cámara ${camaras.indexOf(camara) + 1}`}
                 </option>
               ))}
             </select>
-            <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
-              <button
-                className="btn-foto"
-                onClick={() => {
-                  if (fotoActual !== null && camaraSeleccionada) {
-                    iniciarCamara(fotoActual, camaraSeleccionada);
-                  }
-                }}
-                disabled={!camaraSeleccionada}
-                style={{ flex: 1 }}
-              >
-                Activar cámara
-              </button>
-              <button 
-                className="btn-cerrar" 
-                onClick={() => {
-                  setShowSelector(false);
-                  setFotoActual(null);
-                }}
-                style={{ flex: 1 }}
-              >
-                Cancelar
-              </button>
-            </div>
+            <button
+              className="btn-foto"
+              onClick={() => {
+                if (fotoActual !== null && camaraSeleccionada) {
+                  iniciarCamara(fotoActual, camaraSeleccionada);
+                }
+              }}
+            >
+              Usar esta cámara
+            </button>
+            <button
+              className="btn-cerrar"
+              onClick={() => {
+                setShowSelector(false);
+                setFotoActual(null);
+              }}
+              style={{ flex: 1 }}
+            >
+              Cancelar
+            </button>
           </div>
         </div>
       )}
+
       {camaraActiva && (
         <div className="modal-camara">
           <div className="camara-contenedor">
@@ -482,14 +400,13 @@ const App: React.FC = () => {
           </div>
         </div>
       )}
-      <input
-        type="file"
-        accept="image/*"
-        capture="environment"
-        ref={fileInputRef}
-        style={{ display: 'none' }}
-        onChange={handleFileChange}
-      />
+
+      {error && (
+        <div className="error-message">
+          {error}
+          <button onClick={() => setError(null)}>Cerrar</button>
+        </div>
+      )}
     </div>
   );
 };
