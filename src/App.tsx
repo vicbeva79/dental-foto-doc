@@ -1,6 +1,7 @@
 import React, { useRef, useState } from 'react';
 import './App.css';
 import domtoimage from 'dom-to-image';
+import jsPDF from 'jspdf';
 
 // Importar imágenes
 import perfilImg from './assets/images/capture-profile.png';
@@ -52,9 +53,29 @@ const PHOTO_IMAGES = [
   lateralDerechaImg                 // Posición 8
 ];
 
+const DOCTORS = [
+  'Dr. David Carralero',
+  'Dra. Eva Tormo',
+  'Dra. Lucía Sanchis',
+  'Dra. Marta Piquer',
+  'Dra. Ángela Martín',
+  'Dra. Marina Marco',
+  'Dra. Sara Macias',
+  'Dr. Nicolás Pastrana',
+  'Dra. Alicia Rocher',
+  'Dra. Ofelia Sánchez',
+  'Dra. Lidón Pedrós',
+  'Dr. Luis Martorell',
+  'Dr. Didier Delmas',
+  'Dra. Mª Josep Albert',
+  'Dr. Eugenio Sahuquillo',
+  'Dr. Carlos Trull'
+];
+
 const App: React.FC = () => {
   const [nombre, setNombre] = useState<string>('');
   const [ficha, setFicha] = useState<string>('');
+  const [doctor, setDoctor] = useState<string>('');
   const [fotos, setFotos] = useState<(string | null)[]>(Array(MAX_PHOTOS).fill(null));
   const [camaraActiva, setCamaraActiva] = useState<boolean>(false);
   const [fotoActual, setFotoActual] = useState<number | null>(null);
@@ -189,31 +210,42 @@ const App: React.FC = () => {
   // Descargar documento como imagen
   const descargarDocumento = async () => {
     if (!docRef.current) return;
-    
     try {
       setDescargando(true);
       setExportando(true);
-      
+
       // Esperar a que se apliquen los estilos de exportación
       await new Promise(resolve => setTimeout(resolve, 100));
-      
-      const dataUrl = await domtoimage.toJpeg(docRef.current, {
-        quality: 0.95,
-        bgcolor: '#fff',
+
+      // Captura la imagen del documento como PNG
+      const dataUrl = await domtoimage.toPng(docRef.current, {
+        quality: 1.0,
+        width: A4_WIDTH_PX,
+        height: A4_HEIGHT_PX,
+        bgcolor: '#ffffff',
         style: {
-          transform: 'scale(1)',
-          transformOrigin: 'top left'
+          transform: 'none'
+        },
+        imagePlaceholder: undefined,
+        cacheBust: true,
+        filter: (node: any) => {
+          return (node.tagName !== 'BUTTON');
         }
+      } as any);
+
+      // Crea el PDF y añade la imagen
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'px',
+        format: [A4_WIDTH_PX, A4_HEIGHT_PX]
       });
-      
-      const link = document.createElement('a');
+      pdf.addImage(dataUrl, 'PNG', 0, 0, A4_WIDTH_PX, A4_HEIGHT_PX);
+
       const fecha = getTodayES().replaceAll('/', '-');
-      link.download = `${nombre || 'paciente'}_${fecha}.jpg`;
-      link.href = dataUrl;
-      link.click();
+      pdf.save(`${nombre || 'paciente'}_${fecha}.pdf`);
     } catch (err) {
-      console.error('Error al generar la imagen:', err);
-      setError('Error al generar la imagen. Por favor, intenta de nuevo.');
+      setError('Error al generar el PDF');
+      console.error('Error al generar el PDF:', err);
     } finally {
       setDescargando(false);
       setExportando(false);
@@ -237,6 +269,30 @@ const App: React.FC = () => {
     cargarCamaras();
   }, []);
 
+  // --- Exportar JSON para migración futura ---
+  const exportarJSON = () => {
+    const datos = {
+      nombre,
+      ficha,
+      doctor,
+      fecha: getTodayES(),
+      fotos: fotos.map((foto, idx) => ({
+        etiqueta: PHOTO_LABELS[idx],
+        imagen: foto
+      }))
+    };
+    const json = JSON.stringify(datos, null, 2);
+    const blob = new Blob([json], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${nombre || 'paciente'}_${getTodayES().replaceAll('/', '-')}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
   return (
     <div className={`App ${exportando ? 'exportando' : ''}`}>
       <div className="doc-a4" ref={docRef}>
@@ -250,6 +306,23 @@ const App: React.FC = () => {
             <div>
               <label>Número de ficha:</label>
               <input type="text" value={ficha} onChange={e => setFicha(e.target.value)} placeholder="Ficha" />
+            </div>
+            <div>
+              <label>Doctor responsable:</label>
+              {exportando ? (
+                <div className="doctor-value">{doctor || ''}</div>
+              ) : (
+                <select 
+                  value={doctor} 
+                  onChange={e => setDoctor(e.target.value)}
+                  className="doctor-select"
+                >
+                  <option value="">Seleccione un doctor</option>
+                  {DOCTORS.map((doc) => (
+                    <option key={doc} value={doc}>{doc}</option>
+                  ))}
+                </select>
+              )}
             </div>
           </div>
         </header>
@@ -312,7 +385,7 @@ const App: React.FC = () => {
 
       {fotos.every(f => f) && (
         <button className="btn-descargar" onClick={descargarDocumento} disabled={descargando}>
-          {descargando ? 'Generando...' : 'Descargar documento JPG'}
+          {descargando ? 'Generando...' : 'Descargar documento PDF'}
         </button>
       )}
 
@@ -407,6 +480,31 @@ const App: React.FC = () => {
           <button onClick={() => setError(null)}>Cerrar</button>
         </div>
       )}
+
+      {/* Botón discreto para exportar JSON */}
+      <button
+        onClick={exportarJSON}
+        style={{
+          position: 'fixed',
+          bottom: 12,
+          right: 12,
+          opacity: 0.2,
+          zIndex: 9999,
+          fontSize: '0.9rem',
+          padding: '6px 12px',
+          borderRadius: '6px',
+          background: '#222',
+          color: '#fff',
+          border: 'none',
+          cursor: 'pointer',
+          transition: 'opacity 0.2s',
+        }}
+        onMouseOver={e => (e.currentTarget.style.opacity = '1')}
+        onMouseOut={e => (e.currentTarget.style.opacity = '0.2')}
+        title="Exportar datos JSON para migración (solo uso avanzado)"
+      >
+        Exportar JSON
+      </button>
     </div>
   );
 };
