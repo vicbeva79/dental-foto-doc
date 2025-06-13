@@ -1,0 +1,15 @@
+{
+  "files": {
+    "main.css": "/fotos-pacientes/static/css/main.79db77f9.css",
+    "main.js": "/fotos-pacientes/static/js/main.3086aa77.js",
+    "static/js/453.8ab44547.chunk.js": "/fotos-pacientes/static/js/453.8ab44547.chunk.js",
+    "index.html": "/fotos-pacientes/index.html",
+    "main.79db77f9.css.map": "/fotos-pacientes/static/css/main.79db77f9.css.map",
+    "main.3086aa77.js.map": "/fotos-pacientes/static/js/main.3086aa77.js.map",
+    "453.8ab44547.chunk.js.map": "/fotos-pacientes/static/js/453.8ab44547.chunk.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.79db77f9.css",
+    "static/js/main.3086aa77.js"
+  ]
+}

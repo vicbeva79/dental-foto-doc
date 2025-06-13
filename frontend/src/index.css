@@ -1,0 +1,7 @@
+/* Puedes agregar estilos globales aquí si lo deseas */
+body { margin: 0; font-family: sans-serif; background: #f7f7f7; }
+
+code {
+  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
+    monospace;
+}

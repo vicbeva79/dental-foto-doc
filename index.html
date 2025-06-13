@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Captura de Fotos</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Captura de Fotos</h1>
+        
+        <div class="camera-container">
+            <video id="camera" autoplay playsinline></video>
+            <div class="camera-controls">
+                <div class="camera-button" id="startCamera">
+                    <img src="https://cdn-icons-png.flaticon.com/512/2991/2991111.png" alt="Start Camera" class="camera-icon">
+                </div>
+                <div class="camera-button" id="stopCamera">
+                    <img src="https://cdn-icons-png.flaticon.com/512/1828/1828843.png" alt="Stop Camera" class="camera-icon">
+                </div>
+            </div>
+        </div>
+
+        <div class="gallery" id="gallery"></div>
+    </div>
+
+    <script>
+        const camera = document.getElementById('camera');
+        const startButton = document.getElementById('startCamera');
+        const stopButton = document.getElementById('stopCamera');
+        const gallery = document.getElementById('gallery');
+        let stream = null;
+
+        startButton.addEventListener('click', async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ 
+                    video: { 
+                        facingMode: 'environment',
+                        width: { ideal: 1920 },
+                        height: { ideal: 1080 }
+                    } 
+                });
+                camera.srcObject = stream;
+                startButton.style.display = 'none';
+                stopButton.style.display = 'flex';
+            } catch (err) {
+                console.error('Error al acceder a la cámara:', err);
+                alert('No se pudo acceder a la cámara. Por favor, asegúrate de dar los permisos necesarios.');
+            }
+        });
+
+        stopButton.addEventListener('click', () => {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                camera.srcObject = null;
+                startButton.style.display = 'flex';
+                stopButton.style.display = 'none';
+            }
+        });
+
+        // Capturar foto
+        camera.addEventListener('click', () => {
+            if (!stream) return;
+            
+            const canvas = document.createElement('canvas');
+            canvas.width = camera.videoWidth;
+            canvas.height = camera.videoHeight;
+            canvas.getContext('2d').drawImage(camera, 0, 0);
+            
+            const img = document.createElement('img');
+            img.src = canvas.toDataURL('image/jpeg');
+            img.className = 'gallery-image';
+            
+            const container = document.createElement('div');
+            container.className = 'gallery-item';
+            container.appendChild(img);
+            
+            const downloadBtn = document.createElement('a');
+            downloadBtn.href = img.src;
+            downloadBtn.download = `foto_${new Date().getTime()}.jpg`;
+            downloadBtn.className = 'download-button';
+            downloadBtn.innerHTML = '⬇️';
+            container.appendChild(downloadBtn);
+            
+            gallery.insertBefore(container, gallery.firstChild);
+        });
+    </script>
+</body>
+</html> 
