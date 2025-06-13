@@ -1,0 +1,734 @@
+body, .App {
+  background: #f5f5f5;
+  margin: 0;
+  padding: 0;
+  font-family: 'Segoe UI', 'Roboto', Arial, sans-serif;
+  color: #222;
+}
+
+.App {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  background: #f5f5f5;
+}
+
+.doc-a4 {
+  width: 100%;
+  max-width: 1123px;
+  min-height: 794px;
+  margin: 0 auto;
+  background: white;
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+@media print {
+  .doc-a4 {
+    width: 297mm;
+    height: 210mm;
+    margin: 0;
+    padding: 0;
+    box-shadow: none;
+  }
+}
+
+.doc-header {
+  display: flex;
+  align-items: center;
+  border-bottom: 2px solid #e0e0e0;
+  padding-bottom: 16px;
+  margin-bottom: 16px;
+  gap: 32px;
+}
+
+.logo-empresa {
+  height: 120px;
+  object-fit: contain;
+  background: #fff;
+  border-radius: 8px;
+  padding: 4px 16px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  image-rendering: -webkit-optimize-contrast;
+  image-rendering: crisp-edges;
+}
+
+.datos-paciente {
+  display: flex;
+  gap: 32px;
+  font-size: 1.2rem;
+}
+
+.datos-paciente label {
+  font-weight: 600;
+  color: #444;
+  margin-right: 8px;
+  font-size: 1.2rem;
+}
+
+.datos-paciente input {
+  border: 1px solid #bbb;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 1.2rem;
+  background: #fafafa;
+  color: #222;
+  margin-left: 4px;
+  min-width: 200px;
+}
+
+.datos-paciente select {
+  border: 1px solid #bbb;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 1.2rem;
+  background: #fafafa;
+  color: #222;
+  margin-left: 4px;
+  min-width: 200px;
+  cursor: pointer;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+}
+
+.datos-paciente select:focus {
+  outline: none;
+  border-color: #666;
+  background: #fff;
+}
+
+.fotos-grid {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  margin: 20px 0;
+  background: #fff;
+  border: none;
+}
+
+.fila-fotos {
+  display: flex;
+  gap: 0;
+  flex: 1;
+  background: #fff;
+  border: none;
+}
+
+.foto-celda {
+  flex: 1;
+  position: relative;
+  background: white;
+  border: none;
+  border-radius: 8px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  min-height: 300px;
+}
+
+.foto-paciente {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  margin: 0;
+  border: none;
+}
+
+.btn-capturar {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s;
+}
+
+.btn-capturar:hover {
+  transform: scale(1.05);
+}
+
+.btn-image {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: 8px;
+}
+
+.doc-footer {
+  border-top: 2px solid #e0e0e0;
+  margin-top: 0;
+  padding-top: 4px;
+  text-align: right;
+  color: #666;
+  font-size: 0.85rem;
+  display: flex;
+  justify-content: flex-end;
+  align-items: flex-start;
+  padding-right: 8px;
+  padding-left: 0;
+  padding-bottom: 0;
+  background: none;
+  min-height: 24px;
+}
+
+.fecha-doc {
+  font-weight: 400;
+  color: #444;
+  font-size: 0.85rem;
+  margin-top: 0;
+  margin-bottom: 0;
+  padding: 0;
+}
+
+.btn-descargar {
+  margin-top: 18px;
+  background: #444;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  padding: 14px 32px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+  transition: background 0.2s;
+}
+.btn-descargar:disabled {
+  background: #bbb;
+  cursor: not-allowed;
+}
+.btn-descargar:hover:not(:disabled) {
+  background: #222;
+}
+
+/* Modal cámara */
+.modal-camara {
+  position: fixed;
+  z-index: 1000;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0,0,0,0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+}
+
+.camara-contenedor {
+  background: #fff;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 32px rgba(0,0,0,0.18);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 18px;
+  width: 100%;
+  max-width: 500px;
+}
+
+.video-captura {
+  width: 100%;
+  max-width: 100%;
+  aspect-ratio: 16/9;
+  border-radius: 8px;
+  background: #222;
+  object-fit: cover;
+}
+
+.btn-foto, .btn-cerrar {
+  margin-top: 8px;
+  background: #222;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  padding: 10px 18px;
+  font-size: 1rem;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.btn-foto:hover, .btn-cerrar:hover {
+  background: #444;
+}
+.btn-cerrar {
+  background: #bbb;
+  color: #222;
+  margin-left: 12px;
+}
+.btn-cerrar:hover {
+  background: #888;
+  color: #fff;
+}
+
+@media (max-width: 768px) {
+  .doc-a4 {
+    padding: 10px;
+  }
+
+  .doc-header {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 12px;
+  }
+
+  .logo-empresa {
+    height: 100px;
+    margin-bottom: 8px;
+  }
+
+  .datos-paciente {
+    flex-direction: column;
+    width: 100%;
+    gap: 12px;
+  }
+
+  .datos-paciente > div {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .datos-paciente label {
+    font-size: 1rem;
+  }
+
+  .datos-paciente input {
+    width: 100%;
+    font-size: 1rem;
+    padding: 8px 12px;
+  }
+
+  .fila-fotos {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .foto-celda {
+    min-height: 250px;
+    padding: 6px;
+  }
+
+  .btn-image {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+  }
+
+  .modal-camara {
+    padding: 0;
+  }
+
+  .camara-contenedor {
+    width: 100%;
+    height: 100%;
+    max-width: none;
+    border-radius: 0;
+    padding: 16px;
+    justify-content: space-between;
+  }
+
+  .video-captura {
+    width: 100%;
+    height: calc(100vh - 180px);
+    max-height: calc(100vh - 180px);
+    border-radius: 0;
+  }
+
+  .btn-foto, .btn-cerrar {
+    width: 100%;
+    padding: 16px;
+    font-size: 1.1rem;
+    margin: 8px 0;
+  }
+}
+
+.error-message {
+  position: fixed;
+  top: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  background-color: #ff4444;
+  color: white;
+  padding: 15px 20px;
+  border-radius: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.error-message button {
+  background: none;
+  border: 1px solid white;
+  color: white;
+  padding: 5px 10px;
+  border-radius: 3px;
+  cursor: pointer;
+  margin-left: 10px;
+}
+
+.error-message button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.btn-eliminar-foto {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  background: rgba(255, 60, 60, 0.85);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-size: 1.2rem;
+  font-weight: bold;
+  cursor: pointer;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  transition: background 0.2s;
+}
+.btn-eliminar-foto:hover {
+  background: #ff2222;
+}
+
+.exportando .btn-eliminar-foto {
+  display: none !important;
+}
+
+.exportando .doc-a4 {
+  width: 2480px !important;
+  height: 1754px !important;
+  padding: 40px !important;
+  margin: 0 !important;
+  box-sizing: border-box !important;
+  background: #fff !important;
+  transform: none !important;
+  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: crisp-edges !important;
+}
+.exportando .doc-header,
+.exportando .datos-paciente,
+.exportando .doc-footer {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  margin-left: 0 !important;
+  margin-right: 0 !important;
+  width: 100% !important;
+  max-width: 100% !important;
+}
+.exportando .fotos-grid {
+  width: 100% !important;
+  max-width: 100% !important;
+  gap: 12px !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  display: flex !important;
+  flex-direction: column !important;
+}
+.exportando .fila-fotos {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 12px !important;
+  width: 100% !important;
+  margin: 0 !important;
+}
+.exportando .foto-celda {
+  width: 800px !important;
+  height: 450px !important;
+  min-width: 0 !important;
+  min-height: 0 !important;
+  max-width: none !important;
+  max-height: none !important;
+  flex: none !important;
+  border-radius: 0 !important;
+  margin: 0 !important;
+  background: #fff !important;
+  overflow: hidden !important;
+  box-sizing: border-box !important;
+  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: crisp-edges !important;
+}
+.exportando .foto-paciente {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+  border-radius: 0 !important;
+  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: crisp-edges !important;
+}
+
+.exportando .logo-empresa {
+  height: 160px !important;
+  image-rendering: -webkit-optimize-contrast !important;
+  image-rendering: crisp-edges !important;
+}
+
+.exportando .datos-paciente {
+  font-size: 1.4rem !important;
+}
+
+.exportando .datos-paciente label {
+  font-size: 1.4rem !important;
+}
+
+.exportando .datos-paciente input {
+  font-size: 1.4rem !important;
+  padding: 10px 20px !important;
+  min-width: 300px !important;
+}
+
+.exportando .datos-paciente select {
+  font-size: 1.4rem !important;
+  padding: 10px 20px !important;
+  min-width: 300px !important;
+  background: #fff !important;
+  border: 1px solid #bbb !important;
+  color: #222 !important;
+  pointer-events: none !important;
+}
+
+.camera-container {
+  position: relative;
+  width: 100%;
+  max-width: 640px;
+  margin: 0 auto;
+  background: #000;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.camera-preview {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16/9;
+  object-fit: cover;
+}
+
+.camera-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 20px;
+  z-index: 10;
+}
+
+.camera-button {
+  width: 60px;
+  height: 60px;
+  background: rgba(255, 255, 255, 0.9);
+  border: none;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+  padding: 0;
+}
+
+.camera-button:hover {
+  transform: scale(1.1);
+  background: white;
+}
+
+.camera-icon {
+  width: 32px;
+  height: 32px;
+  object-fit: contain;
+}
+
+/* Estilos para la vista de captura en móvil vertical */
+@media (max-width: 768px) and (orientation: portrait) {
+  .App:not(.exportando) .doc-header {
+    flex-direction: column;
+    align-items: center;
+    gap: 16px;
+    padding-bottom: 12px;
+  }
+
+  .App:not(.exportando) .logo-empresa {
+    height: 100px;
+    margin-bottom: 8px;
+  }
+
+  .App:not(.exportando) .datos-paciente {
+    flex-direction: column;
+    width: 100%;
+    gap: 12px;
+  }
+
+  .App:not(.exportando) .datos-paciente > div {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .App:not(.exportando) .datos-paciente label {
+    font-size: 1rem;
+  }
+
+  .App:not(.exportando) .datos-paciente input {
+    width: 100%;
+    font-size: 1rem;
+    padding: 8px 12px;
+  }
+}
+
+/* Estilos para el documento final (siempre en formato original) */
+.exportando .doc-header {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 32px !important;
+}
+
+.exportando .logo-empresa {
+  height: 120px !important;
+  margin-bottom: 0 !important;
+}
+
+.exportando .datos-paciente {
+  display: flex !important;
+  flex-direction: row !important;
+  gap: 32px !important;
+  font-size: 1.2rem !important;
+}
+
+.exportando .datos-paciente > div {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+.camera-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #000;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+}
+
+.camera-modal video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.camera-controls {
+  position: absolute;
+  bottom: 20px;
+  left: 0;
+  right: 0;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 20px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.7));
+}
+
+.capture-btn, .close-btn {
+  padding: 15px 30px;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+}
+
+.capture-btn {
+  background: #28a745;
+  color: white;
+}
+
+.capture-btn:hover {
+  background: #218838;
+}
+
+.close-btn {
+  background: #dc3545;
+  color: white;
+}
+
+.close-btn:hover {
+  background: #c82333;
+}
+
+.preview-container {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.9);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.3s ease;
+}
+
+.preview-container.visible {
+  opacity: 1;
+  visibility: visible;
+}
+
+.preview-image {
+  max-width: 90%;
+  max-height: 90vh;
+  object-fit: contain;
+}
+
+.doctor-value {
+  border: 1px solid #bbb;
+  border-radius: 6px;
+  padding: 8px 16px;
+  font-size: 1.2rem;
+  background: #fafafa;
+  color: #222;
+  margin-left: 4px;
+  min-width: 200px;
+}
+
+.exportando .doctor-value {
+  font-size: 1.4rem !important;
+  padding: 10px 20px !important;
+  min-width: 300px !important;
+  background: #fff !important;
+  border: 1px solid #bbb !important;
+  color: #222 !important;
+}

@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+<<<<<<< HEAD
     "target": "es2018",
     "module": "commonjs",
     "outDir": "./dist",
@@ -22,4 +23,24 @@
     "node_modules",
     "dist"
   ]
+=======
+    "target": "es5",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowSyntheticDefaultImports": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true,
+    "noFallthroughCasesInSwitch": true,
+    "module": "esnext",
+    "moduleResolution": "node",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "typeRoots": ["./src/types", "./node_modules/@types"]
+  },
+  "include": ["src"]
+>>>>>>> 1643aaeb229b48133c1af510e33418602d936ffe
 } 

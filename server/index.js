@@ -39,16 +39,11 @@ const storage = multer.diskStorage({
     cb(null, uploadDir);
   },
   filename: function (req, file, cb) {
-    // Generar nombre único para el archivo
-    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    cb(null, file.fieldname + '-' + uniqueSuffix + '.pdf');
+    cb(null, Date.now() + '-' + Math.round(Math.random() * 1E9) + path.extname(file.originalname));
   }
 });
 
 const upload = multer({ storage: storage });
-
-// Servir archivos estáticos
-app.use(express.static(path.join(__dirname, '../fotos-pacientes')));
 
 // Endpoint para crear una nueva sesión
 app.post('/api/sessions', async (req, res) => {
@@ -73,39 +68,49 @@ app.post('/api/sessions', async (req, res) => {
   }
 });
 
-// Endpoint para subir documentos
-app.post('/api/upload', upload.single('document'), (req, res) => {
+// Endpoint para subir fotos
+app.post('/api/photos', upload.single('photo'), async (req, res) => {
   try {
     if (!req.file) {
-      return res.status(400).json({ error: 'No se recibió ningún archivo' });
+      return res.status(400).json({ error: 'No se ha subido ningún archivo' });
     }
-    
+
+    const { sessionId, type } = req.body;
+    const filename = req.file.filename;
+
+    const [result] = await pool.execute(
+      'INSERT INTO photos (session_id, filename, type) VALUES (?, ?, ?)',
+      [sessionId, filename, type]
+    );
+
     res.json({
-      success: true,
-      message: 'Documento guardado correctamente',
-      filename: req.file.filename,
-      path: req.file.path
+      id: result.insertId,
+      filename,
+      type,
+      sessionId
     });
   } catch (error) {
-    console.error('Error al guardar el documento:', error);
-    res.status(500).json({ error: 'Error al guardar el documento' });
+    console.error('Error al subir la foto:', error);
+    res.status(500).json({ error: 'Error al subir la foto' });
   }
 });
 
-// Endpoint para listar documentos
-app.get('/api/documents', (req, res) => {
-  const uploadDir = path.join(__dirname, 'uploads');
-  if (!fs.existsSync(uploadDir)) {
-    return res.json([]);
+// Endpoint para obtener las fotos de una sesión
+app.get('/api/photos/:sessionId', async (req, res) => {
+  try {
+    const [rows] = await pool.execute(
+      'SELECT * FROM photos WHERE session_id = ?',
+      [req.params.sessionId]
+    );
+    res.json(rows);
+  } catch (error) {
+    console.error('Error al obtener las fotos:', error);
+    res.status(500).json({ error: 'Error al obtener las fotos' });
   }
-
-  fs.readdir(uploadDir, (err, files) => {
-    if (err) {
-      return res.status(500).json({ error: 'Error al leer los documentos' });
-    }
-    res.json(files);
-  });
 });
+
+// Servir archivos estáticos
+app.use(express.static(path.join(__dirname, '../fotos-pacientes')));
 
 // Servir la aplicación React
 app.get('*', (req, res) => {
